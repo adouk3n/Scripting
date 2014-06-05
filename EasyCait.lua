@@ -17,7 +17,7 @@ require "VPrediction"
 require "SourceLib"
 
 -- My script version
-local pVersion = "0.01"
+local pVersion = "0.01b"
 
 -- Are spell ready?
 local QREADY = (myHero:CanUseSpell(_Q) == READY)
@@ -41,6 +41,9 @@ function OnDraw()
    if CaitMenu.Drawing.DrawAA then
       -- Draw AA hero range
       DrawCircle(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 150, 0xFF80FF)
+   end
+   if CaitMenu.Drawing.DrawULT then
+      DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 2000, 1, TARGB({255, 255, 0, 255}), 100)
    end
 end
 
@@ -80,6 +83,7 @@ function _LoadMenu()
 	
 	CaitMenu:addSubMenu("Drawing", "Drawing")
 	CaitMenu.Drawing:addParam("DrawAA", "Draw AA Range", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Drawing:addParam("DrawULT", "Draw ult minimap", SCRIPT_PARAM_ONOFF, true)
 	
 	CaitMenu:addSubMenu("Orbwalker", "Orbwalker")
 	SOWi:LoadToMenu(CaitMenu.Orbwalker)
@@ -88,7 +92,7 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Combo", "Combo")
 	CaitMenu.Combo:addParam("combokey", "Combo key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	CaitMenu.Combo:addParam("comboQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
-	CaitMenu.Combo:addParam("gapcloseE", "Use E gapcloser", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Combo:addParam("gapcloseE", "Use E anti gapcloser", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("chaseE", "Use E to chase (care under turret)", SCRIPT_PARAM_ONOFF, false)
 	
 	CaitMenu:addSubMenu("Harass", "Harass")
@@ -103,9 +107,9 @@ function _Combo()
     local target = STS:GetTarget(Erange)
 	if CaitMenu.Combo.chaseE and EREADY and target ~= nil then
 	   local CastPosition,  HitChance,  Position = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
-	   if GetDistance(target) <= Erange + 500 and EREADY then
+	   if GetDistance(target) >= Erange + 750 and EREADY then
 	      -- Thanks to Bilbao for the math
-	      local ToEnnemyReversed = Vector(myHero) +  (Vector(myHero) - Vector(CastPosition.x, CastPosition.y, CastPosition.z))*(950/GetDistance(mousePos))
+	      local ToEnnemyReversed = Vector(myHero) +  (Vector(myHero) - Vector(CastPosition.x, CastPosition.y, CastPosition.z))*(950/GetDistance(target))
 	      CastSpell(_E, ToEnnemyReversed.x, ToEnnemyReversed.z)
        end
     end	
