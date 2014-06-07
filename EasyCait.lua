@@ -1,15 +1,16 @@
 --[[
 
 	EasyCait - Scripted by How I met Katarina.
-	Version: 0.01
+	Version: 0.02
 	
-	Credits : Bilbao for maths, Honda7 for SOW and VPred
+	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
 	Hope I didn't forget somebody.
 ]]--
 
 -- Hero check
 if GetMyHero().charName ~= "Caitlyn" then 
-return end
+return 
+end
 
 -- Required lib
 require "SOW"
@@ -17,7 +18,7 @@ require "VPrediction"
 require "SourceLib"
 
 -- My script version
-local pVersion = "0.01b"
+local pVersion = "0.02"
 
 -- Are spell ready?
 local QREADY = (myHero:CanUseSpell(_Q) == READY)
@@ -43,7 +44,13 @@ function OnDraw()
       DrawCircle(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 150, 0xFF80FF)
    end
    if CaitMenu.Drawing.DrawULT then
-      DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 2000, 1, TARGB({255, 255, 0, 255}), 100)
+      if myHero.level >= 6 and myHero.level < 11 then
+         DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 2000, 1, TARGB({255, 255, 0, 255}), 100)
+	  elseif myHero.level >= 11 and myHero.level < 16 then
+	     DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 2500, 1, TARGB({255, 255, 0, 255}), 100)
+	  elseif myHero.level >= 16 then
+	     DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 3000, 1, TARGB({255, 255, 0, 255}), 100)
+	  end
    end
 end
 
@@ -59,6 +66,9 @@ function OnTick()
    -- if key C pressed then harass
    if CaitMenu.Harass.harasskey then
       _Harass() 
+   end
+   if CaitMenu.Jump.jumpkey then
+      _Jump() 
    end
 end
 
@@ -93,7 +103,10 @@ function _LoadMenu()
 	CaitMenu.Combo:addParam("combokey", "Combo key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	CaitMenu.Combo:addParam("comboQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("gapcloseE", "Use E anti gapcloser", SCRIPT_PARAM_ONOFF, true)
-	CaitMenu.Combo:addParam("chaseE", "Use E to chase (care under turret)", SCRIPT_PARAM_ONOFF, false)
+	CaitMenu.Combo:addParam("gapcloseDist", "lower if u want it to antigaplose when the ennemy is farther", SCRIPT_PARAM_SLICE, 700, 50, 950)
+	
+	CaitMenu:addSubMenu("Jump", "Jump")
+	CaitMenu.Jump:addParam("jumpkey", "Jump to mouse key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("T"))
 	
 	CaitMenu:addSubMenu("Harass", "Harass")
 	CaitMenu.Harass:addParam("harasskey", "Harass key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("C"))
@@ -102,44 +115,47 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
 end
+
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
-    local target = STS:GetTarget(Erange)
-	if CaitMenu.Combo.chaseE and EREADY and target ~= nil then
-	   local CastPosition,  HitChance,  Position = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
-	   if GetDistance(target) >= Erange + 750 and EREADY then
-	      -- Thanks to Bilbao for the math
-	      local ToEnnemyReversed = Vector(myHero) +  (Vector(myHero) - Vector(CastPosition.x, CastPosition.y, CastPosition.z))*(950/GetDistance(target))
-	      CastSpell(_E, ToEnnemyReversed.x, ToEnnemyReversed.z)
-       end
-    end	
     local target = STS:GetTarget(Qrange)
     if CaitMenu.Combo.comboQ and QREADY and target ~= nil then
-	   local CastPosition,  HitChance,  Position = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange and QREADY then
+	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
+	   if GetDistance(target) <= Qrange - 150 and QREADY then
 	      CastSpell(_Q, CastPosition.x, CastPosition.z)
        end
     end	
 	local target = STS:GetTarget(Erange)
 	if CaitMenu.Combo.gapcloseE and EREADY and target ~= nil then
-	   local CastPosition,  HitChance,  Position = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
-	   if GetDistance(target) <= Erange - 425 and EREADY then
+	   local CastPosition = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
+	   if GetDistance(target) <= Erange - CaitMenu.Combo.gapcloseDist and EREADY then
 	      CastSpell(_E, CastPosition.x, CastPosition.z)
        end
     end	
 end
+
 -- That's the harass function hell yeahh
 function _Harass()
     local target = STS:GetTarget(Qrange)
     if CaitMenu.Harass.harassQ and QREADY and target ~= nil then
-	   local CastPosition,  HitChance,  Position = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange and QREADY then
+	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
+	   if GetDistance(target) <= Qrange - 150 and QREADY then
 	      CastSpell(_Q, CastPosition.x, CastPosition.z)
        end
    end			
 end
+
 -- Auto level spell function
 function _AutoLevel()
    Sequence = { 1,3,1,2,1,4,1,3,1,3,4,3,3,2,2,4,2,2 }
    autoLevelSetSequence(Sequence)
+end
+
+-- Jump to mouse function
+function _Jump()
+	   if EREADY then
+	      -- Ty Bilbao, math to reverse spell
+	      local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
+	      CastSpell(_E, ToMousePos.x, ToMousePos.z)
+       end
 end
