@@ -12,10 +12,41 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
--- Required lib
-require "SOW"
-require "VPrediction"
-require "SourceLib"
+local version = 0.03
+local AUTOUPDATE = true
+local SCRIPT_NAME = "EasyCait"
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+local SOURCELIB_URL = "https://raw.github.com/TheRealSource/public/master/common/SourceLib.lua"
+local SOURCELIB_PATH = LIB_PATH.."SourceLib.lua"
+
+if FileExist(SOURCELIB_PATH) then
+	require("SourceLib")
+else
+	DOWNLOADING_SOURCELIB = true
+	DownloadFile(SOURCELIB_URL, SOURCELIB_PATH, function() print("Required libraries downloaded successfully, please reload") end)
+end
+
+if DOWNLOADING_SOURCELIB then print("Downloading required libraries, please wait...") return end
+
+if AUTOUPDATE then
+	SourceUpdater(SCRIPT_NAME, version, "raw.github.com", "/S4CHQQ/Scripting/master/"..SCRIPT_NAME..".lua", SCRIPT_PATH .. GetCurrentEnv().FILE_NAME, "/S4CHQQ/version/master/"..SCRIPT_NAME..".version"):CheckUpdate()
+end
+
+local RequireI = Require("SourceLib")
+	RequireI:Add("vPrediction", "https://raw.github.com/Hellsing/BoL/master/common/VPrediction.lua")
+	RequireI:Add("SOW", "https://raw.github.com/Hellsing/BoL/master/common/SOW.lua")
+	RequireI:Check()
+
+if RequireI.downloadNeeded == true then return end
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 -- My script version
 local pVersion = "0.03"
@@ -38,6 +69,7 @@ function OnLoad()
    _LoadLib()
 end
 
+-- Looks like drawing with OnDraw fix FPS drop
 function OnDraw()
    if CaitMenu.Drawing.DrawAA then
       -- Draw AA hero range
@@ -72,14 +104,21 @@ function OnTick()
    end
    
    -- "Visual Exploit found try it"
-   if CaitMenu.Exploit.exploitkey then
-	 local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
-     Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
-	-- Packet('S_CAST', { spellId = _Q, fromX = mousePos.x, fromY = mousePos.z}):send()
-   end
-   if CaitMenu.Exploit.exploitkey then
-   --  Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
-	 Packet('S_CAST', { spellId = _Q, fromX = mousePos.x, fromY = mousePos.z}):send()
+   local target = STS:GetTarget(Qrange)
+   if target ~= nil then
+      if CaitMenu.Exploit.exploitkey then
+	    local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
+           Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
+      end
+	  
+      if CaitMenu.Exploit.exploitkey then
+          if QREADY then
+	         local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
+	         if GetDistance(target) <= Qrange - 150 and QREADY then
+	            Packet('S_CAST', { spellId = _Q, fromX = CastPosition.x, fromY = CastPosition.z}):send()
+             end
+          end	
+      end
    end
 end
 
@@ -122,9 +161,10 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Harass", "Harass")
 	CaitMenu.Harass:addParam("harasskey", "Harass key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("C"))
 	CaitMenu.Harass:addParam("harassQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Harass:addParam("Manacheck", "Mana manager", SCRIPT_PARAM_SLICE, 50, 1, 100)
 	
     CaitMenu:addSubMenu("Exploit", "Exploit")
-    CaitMenu.Exploit:addParam("exploitkey", "Exploit Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("Y"))	
+    CaitMenu.Exploit:addParam("exploitkey", "Exploit Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("X"))	
 	
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
@@ -137,16 +177,10 @@ function CastSpells(spell, posx, posz)
      Packet('S_CAST', { spellId = spell, fromX = posx, fromY = posz}):send()
   else
      CastSpell(spell, posx, posz)
+	 CaitMenu.Extra.pCast = false
   end	  
 end
 
---[[function LowMana()
-    if ((myHero.mana / myHero.maxMana * 100) >= Menu.Harass.ManaCheck then
-        return true
-    else
-        return false
-    end
-end]]--
 
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
@@ -169,7 +203,7 @@ end
 -- That's the harass function hell yeahh
 function _Harass()
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Harass.harassQ and QREADY and target ~= nil then
+    if CaitMenu.Harass.harassQ and QREADY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and QREADY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
