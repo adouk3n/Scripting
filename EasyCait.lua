@@ -70,6 +70,17 @@ function OnTick()
    if CaitMenu.Jump.jumpkey then
       _Jump() 
    end
+   
+   -- "Visual Exploit found try it"
+   if CaitMenu.Exploit.exploitkey then
+	 local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
+     Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
+	-- Packet('S_CAST', { spellId = _Q, fromX = mousePos.x, fromY = mousePos.z}):send()
+   end
+   if CaitMenu.Exploit.exploitkey then
+   --  Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
+	 Packet('S_CAST', { spellId = _Q, fromX = mousePos.x, fromY = mousePos.z}):send()
+   end
 end
 
 
@@ -112,9 +123,30 @@ function _LoadMenu()
 	CaitMenu.Harass:addParam("harasskey", "Harass key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("C"))
 	CaitMenu.Harass:addParam("harassQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
 	
+    CaitMenu:addSubMenu("Exploit", "Exploit")
+    CaitMenu.Exploit:addParam("exploitkey", "Exploit Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("Y"))	
+	
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
+	CaitMenu.Extra:addParam("pCast", "Packet cast", SCRIPT_PARAM_ONOFF, false)
 end
+
+-- This will cast spell packet or normal depending if ON/OFF in menu and if u are VIP or not
+function CastSpells(spell, posx, posz)
+  if CaitMenu.Extra.pCast and VIP_USER then
+     Packet('S_CAST', { spellId = spell, fromX = posx, fromY = posz}):send()
+  else
+     CastSpell(spell, posx, posz)
+  end	  
+end
+
+--[[function LowMana()
+    if ((myHero.mana / myHero.maxMana * 100) >= Menu.Harass.ManaCheck then
+        return true
+    else
+        return false
+    end
+end]]--
 
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
@@ -122,14 +154,14 @@ function _Combo()
     if CaitMenu.Combo.comboQ and QREADY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and QREADY then
-	      CastSpell(_Q, CastPosition.x, CastPosition.z)
+	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
     end	
 	local target = STS:GetTarget(Erange)
 	if CaitMenu.Combo.gapcloseE and EREADY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
 	   if GetDistance(target) <= Erange - CaitMenu.Combo.gapcloseDist and EREADY then
-	      CastSpell(_E, CastPosition.x, CastPosition.z)
+	      CastSpells(_E, CastPosition.x, CastPosition.z)
        end
     end	
 end
@@ -140,7 +172,7 @@ function _Harass()
     if CaitMenu.Harass.harassQ and QREADY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and QREADY then
-	      CastSpell(_Q, CastPosition.x, CastPosition.z)
+	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
    end			
 end
@@ -156,6 +188,6 @@ function _Jump()
 	   if EREADY then
 	      -- Ty Bilbao, math to reverse spell
 	      local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
-	      CastSpell(_E, ToMousePos.x, ToMousePos.z)
+	      CastSpells(_E, ToMousePos.x, ToMousePos.z)
        end
 end
