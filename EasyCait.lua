@@ -1,7 +1,7 @@
 --[[
 
 	EasyCait - Scripted by How I met Katarina.
-	Version: 0.02
+	Version: 0.03
 	
 	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
 	Hope I didn't forget somebody.
@@ -18,7 +18,7 @@ require "VPrediction"
 require "SourceLib"
 
 -- My script version
-local pVersion = "0.02"
+local pVersion = "0.03"
 
 -- Are spell ready?
 local QREADY = (myHero:CanUseSpell(_Q) == READY)
