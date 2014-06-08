@@ -1,7 +1,7 @@
 --[[
 
 	EasyCait - Scripted by How I met Katarina.
-	Version: 0.03
+	Version: 0.05
 	
 	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
 	Hope I didn't forget somebody.
@@ -12,8 +12,8 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 0.04
-local pVersion = "0.04"
+local version = 0.05
+local pVersion = "0.05"
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -49,19 +49,12 @@ if RequireI.downloadNeeded == true then return end
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
--- Are spell ready?
-local QREADY = (myHero:CanUseSpell(_Q) == READY)
-local WREADY = (myHero:CanUseSpell(_W) == READY)
-local EREADY = (myHero:CanUseSpell(_E) == READY)
-local RREADY = (myHero:CanUseSpell(_R) == READY)
-
 -- Spell info's in order to get prediction
 local Qrange, Qwidth, Qspeed, Qdelay = 1250, 90, 2200, 0.25	
 local Wrange, Wwidth, Wspeed, Wdelay = 800, 100, 1450, 0.5	
 local Erange, Ewidth, Espeed, Edelay = 950, 80, 2000, 0.65	
 local Rrange, Rwidth, Rspeed, Rdelay = 3000, 1, 1500, 0.5
-
+		  
 --[[ Callback 1 ]]--
 function OnLoad()
    PrintChat("<font color=\"#eFF99CC\">You are using EasyCait ["..pVersion.."] by How I met Katarina.</font>")
@@ -71,8 +64,14 @@ end
 -- Looks like drawing with OnDraw fix FPS drop
 function OnDraw()
    if CaitMenu.Drawing.DrawAA then
-      -- Draw AA hero range
-      DrawCircle(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 150, 0xFF80FF)
+      if CaitMenu.Drawing.lowfpscircle then
+	     -- Lag free circle here
+	     DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 100, 1, TARGB({255, 255, 0, 255}), 100)
+		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 102, 1, TARGB({255, 255, 255, 255}), 100)
+	  else
+         -- Draw AA hero range
+         DrawCircle(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 150, 0xFF80FF)
+	  end
    end
    if CaitMenu.Drawing.DrawULT then
       if myHero.level >= 6 and myHero.level < 11 then
@@ -102,18 +101,21 @@ function OnTick()
       _Jump() 
    end
    
-   -- "Visual Exploit found try it"
+   -- "Animation cancel found try it"
    local target = STS:GetTarget(Qrange)
-   if target ~= nil then
-      if CaitMenu.Exploit.exploitkey then
-	    local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
+   if target ~= nil and myHero:CanUseSpell(_E) == READY and myHero:CanUseSpell(_Q) == READY then
+      if CaitMenu.QE.qekey then
+	    if myHero:CanUseSpell(_E) == READY then
+		   -- Ty Bilbao, math to reverse spell
+           local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
            Packet('S_CAST', { spellId = _E, fromX = ToMousePos.x, fromY = ToMousePos.z}):send()
+		end
       end
 	  
-      if CaitMenu.Exploit.exploitkey then
-          if QREADY then
+      if CaitMenu.QE.qekey then
+          if myHero:CanUseSpell(_Q) == READY then
 	         local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	         if GetDistance(target) <= Qrange - 150 and QREADY then
+	         if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	            Packet('S_CAST', { spellId = _Q, fromX = CastPosition.x, fromY = CastPosition.z}):send()
              end
           end	
@@ -141,6 +143,7 @@ function _LoadMenu()
     STS:AddToMenu(CaitMenu.STS)
 	
 	CaitMenu:addSubMenu("Drawing", "Drawing")
+	CaitMenu.Drawing:addParam("lowfpscircle", "Lag free draw", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Drawing:addParam("DrawAA", "Draw AA Range", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Drawing:addParam("DrawULT", "Draw ult minimap", SCRIPT_PARAM_ONOFF, true)
 	
@@ -162,8 +165,8 @@ function _LoadMenu()
 	CaitMenu.Harass:addParam("harassQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Harass:addParam("Manacheck", "Mana manager", SCRIPT_PARAM_SLICE, 50, 1, 100)
 	
-    CaitMenu:addSubMenu("Exploit", "Exploit")
-    CaitMenu.Exploit:addParam("exploitkey", "Exploit Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("X"))	
+    CaitMenu:addSubMenu("Q/E", "QE")
+    CaitMenu.QE:addParam("qekey", "Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("X"))	
 	
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
@@ -184,16 +187,16 @@ end
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Combo.comboQ and QREADY and target ~= nil then
+    if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange - 150 and QREADY then
+	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
     end	
 	local target = STS:GetTarget(Erange)
-	if CaitMenu.Combo.gapcloseE and EREADY and target ~= nil then
+	if CaitMenu.Combo.gapcloseE and myHero:CanUseSpell(_E) == READY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
-	   if GetDistance(target) <= Erange - CaitMenu.Combo.gapcloseDist and EREADY then
+	   if GetDistance(target) <= Erange - CaitMenu.Combo.gapcloseDist and myHero:CanUseSpell(_E) == READY then
 	      CastSpells(_E, CastPosition.x, CastPosition.z)
        end
     end	
@@ -202,9 +205,9 @@ end
 -- That's the harass function hell yeahh
 function _Harass()
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Harass.harassQ and QREADY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
+    if CaitMenu.Harass.harassQ and myHero:CanUseSpell(_Q) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange - 150 and QREADY then
+	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
    end			
@@ -218,9 +221,9 @@ end
 
 -- Jump to mouse function
 function _Jump()
-	   if EREADY then
+	   if myHero:CanUseSpell(_E) == READY then
 	      -- Ty Bilbao, math to reverse spell
-	      local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
+          local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
 	      CastSpells(_E, ToMousePos.x, ToMousePos.z)
        end
 end
