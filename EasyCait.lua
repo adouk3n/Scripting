@@ -1,7 +1,7 @@
 --[[
 
 	EasyCait - Scripted by How I met Katarina.
-	Version: 0.05
+	Version: 0.0x
 	
 	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
 	Hope I didn't forget somebody.
@@ -12,8 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 0.05
-local pVersion = "0.05"
+local version = 0.06
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -49,7 +48,7 @@ if RequireI.downloadNeeded == true then return end
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
--- Spell info's in order to get prediction
+-- Spell data's
 local Qrange, Qwidth, Qspeed, Qdelay = 1250, 90, 2200, 0.25	
 local Wrange, Wwidth, Wspeed, Wdelay = 800, 100, 1450, 0.5	
 local Erange, Ewidth, Espeed, Edelay = 950, 80, 2000, 0.65	
@@ -57,22 +56,31 @@ local Rrange, Rwidth, Rspeed, Rdelay = 3000, 1, 1500, 0.5
 		  
 --[[ Callback 1 ]]--
 function OnLoad()
-   PrintChat("<font color=\"#eFF99CC\">You are using EasyCait ["..pVersion.."] by How I met Katarina.</font>")
+   PrintChat("<font color=\"#eFF99CC\">You are using EasyCait ["..version.."] by How I met Katarina.</font>")
+   PrintChat("<font color=\"#eFF99CC\">Enjoy the brazil range color style, world cup heeeere</font>")
    _LoadLib()
 end
 
 -- Looks like drawing with OnDraw fix FPS drop
 function OnDraw()
-   if CaitMenu.Drawing.DrawAA then
+   if CaitMenu.Drawing.DrawAA and not CaitMenu.Drawing.brazil then
       if CaitMenu.Drawing.lowfpscircle then
-	     -- Lag free circle here
-	     DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 100, 1, TARGB({255, 255, 0, 255}), 100)
+	     -- Lag free circle here, brazil style
+         DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 100, 1, TARGB({255, 255, 0, 255}), 100)
 		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 102, 1, TARGB({255, 255, 255, 255}), 100)
 	  else
          -- Draw AA hero range
          DrawCircle(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 150, 0xFF80FF)
 	  end
    end
+   if CaitMenu.Drawing.brazil then
+	     DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 94, 3, TARGB({255, 102, 204, 0}), 100)
+		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 97, 3, TARGB({255, 255, 255, 51}), 100)
+		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 100, 3, TARGB({255, 0, 128, 255}), 100)
+		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 103, 3, TARGB({255, 255, 255, 51}), 100)
+		 DrawCircle3D(myHero.x, myHero.y, myHero.z, SOWi:MyRange() + 106, 3, TARGB({255, 102, 204, 0}), 100)   
+   end
+   -- draw ult range on minimap, usage of DrawCircleMinimap
    if CaitMenu.Drawing.DrawULT then
       if myHero.level >= 6 and myHero.level < 11 then
          DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 2000, 1, TARGB({255, 255, 0, 255}), 100)
@@ -97,6 +105,7 @@ function OnTick()
    if CaitMenu.Harass.harasskey then
       _Harass() 
    end
+   -- if key T pressed then jump to mouse
    if CaitMenu.Jump.jumpkey then
       _Jump() 
    end
@@ -123,7 +132,14 @@ function OnTick()
    end
 end
 
-
+-- When ennemy in range will get controlled (stun, slow, charm,...) then it will W if ON in Combo or harass or autoW ON
+function OnGainBuff(unit, buff)
+   if ((CaitMenu.Combo.comboW and CaitMenu.Combo.CCedW) or (CaitMenu.Harass.harassW and CaitMenu.Harass.CCedHW) or CaitMenu.autoW) and myHero:CanUseSpell(_W) == READY and unit.visible and unit ~= nil and not unit.dead and ValidTarget(unit, Wrange) then
+      if buff.type == 5 or buff.type == 8 or buff.type == 10 or buff.type == 11 or buff.type == 21 or buff.type == 22 or buff.type == 29 then
+	     CastSpells(_W, unit.x, unit.z)
+	  end
+   end
+end
 
 --[[ Personal Function ]]--
 
@@ -137,7 +153,7 @@ function _LoadLib()
 end
 -- Load my menu adding SOW Orbwalking..
 function _LoadMenu()
-    CaitMenu = scriptConfig("EasyCait "..pVersion, "EasyCait "..pVersion)
+    CaitMenu = scriptConfig("EasyCait "..version, "EasyCait "..version)
 	
     CaitMenu:addSubMenu("Target selector", "STS")
     STS:AddToMenu(CaitMenu.STS)
@@ -146,6 +162,8 @@ function _LoadMenu()
 	CaitMenu.Drawing:addParam("lowfpscircle", "Lag free draw", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Drawing:addParam("DrawAA", "Draw AA Range", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Drawing:addParam("DrawULT", "Draw ult minimap", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Drawing:addParam("brazil", "WORLDCUPBRAZIL", SCRIPT_PARAM_ONOFF, true)
+	
 	
 	CaitMenu:addSubMenu("Orbwalker", "Orbwalker")
 	SOWi:LoadToMenu(CaitMenu.Orbwalker)
@@ -154,8 +172,15 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Combo", "Combo")
 	CaitMenu.Combo:addParam("combokey", "Combo key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	CaitMenu.Combo:addParam("comboQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Combo:addParam("ManacheckCQ", "Mana manager Q", SCRIPT_PARAM_SLICE, 10, 1, 100)
+	CaitMenu.Combo:addParam("comboW", "Use W", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Combo:addParam("CCedW", "Use W only on controlled", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Combo:addParam("ManacheckCW", "Mana manager W", SCRIPT_PARAM_SLICE, 10, 1, 100)
 	CaitMenu.Combo:addParam("gapcloseE", "Use E anti gapcloser", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("gapcloseDist", "lower if u want it to antigaplose when the ennemy is farther", SCRIPT_PARAM_SLICE, 700, 50, 950)
+	
+	--CaitMenu:addSubMenu("Ult snipe", "Ult")
+	--CaitMenu.Ult:addParam("ping", "Ping alert", SCRIPT_PARAM_ONOFF, true)
 	
 	CaitMenu:addSubMenu("Jump", "Jump")
 	CaitMenu.Jump:addParam("jumpkey", "Jump to mouse key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("T"))
@@ -164,6 +189,9 @@ function _LoadMenu()
 	CaitMenu.Harass:addParam("harasskey", "Harass key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("C"))
 	CaitMenu.Harass:addParam("harassQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Harass:addParam("Manacheck", "Mana manager", SCRIPT_PARAM_SLICE, 50, 1, 100)
+	CaitMenu.Harass:addParam("harassW", "Use W", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Harass:addParam("CCedHW", "Use W only on controlled", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Harass:addParam("ManacheckHW", "Mana manager W", SCRIPT_PARAM_SLICE, 10, 1, 100)
 	
     CaitMenu:addSubMenu("Q/E", "QE")
     CaitMenu.QE:addParam("qekey", "Q/E key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("X"))	
@@ -171,6 +199,8 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
 	CaitMenu.Extra:addParam("pCast", "Packet cast", SCRIPT_PARAM_ONOFF, false)
+	
+	CaitMenu:addParam("autoW", "Auto W out of combo or harass on controlled", SCRIPT_PARAM_ONOFF, false)
 end
 
 -- This will cast spell packet or normal depending if ON/OFF in menu and if u are VIP or not
@@ -186,13 +216,23 @@ end
 
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
+    -- Cast Q
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and target ~= nil then
+    if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCQ then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
     end	
+	-- Cast W
+	local target = STS:GetTarget(Wrange)
+	if CaitMenu.Combo.comboW and not CaitMenu.Combo.CCedW and myHero:CanUseSpell(_W) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCW then
+	   local CastPosition = VP:GetCircularCastPosition(target, Wdelay, Wwidth, Wrange, Wspeed, myHero, true)
+	   if GetDistance(target) < Wrange and myHero:CanUseSpell(_W) == READY then
+	      CastSpells(_W, CastPosition.x, CastPosition.z)
+       end
+    end	
+	-- Cast E gapcloser
 	local target = STS:GetTarget(Erange)
 	if CaitMenu.Combo.gapcloseE and myHero:CanUseSpell(_E) == READY and target ~= nil then
 	   local CastPosition = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
@@ -204,13 +244,22 @@ end
 
 -- That's the harass function hell yeahh
 function _Harass()
+    -- cast Q harass
     local target = STS:GetTarget(Qrange)
     if CaitMenu.Harass.harassQ and myHero:CanUseSpell(_Q) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
        end
-   end			
+   end	
+   -- cast W harass
+   local target = STS:GetTarget(Wrange)
+   if CaitMenu.Harass.harassW and not CaitMenu.Harass.CCedHW and myHero:CanUseSpell(_W) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckHW then
+	   local CastPosition = VP:GetCircularCastPosition(target, Wdelay, Wwidth, Wrange, Wspeed, myHero, true)
+	   if GetDistance(target) < Wrange and myHero:CanUseSpell(_W) == READY then
+	      CastSpells(_W, CastPosition.x, CastPosition.z)
+       end
+    end	   
 end
 
 -- Auto level spell function
