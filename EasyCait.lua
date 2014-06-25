@@ -1,7 +1,7 @@
 --[[
 
 	EasyCait - Scripted by How I met Katarina.
-	Version: 0.0x
+	Version: 1.x
 	
 	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
 	Hope I didn't forget somebody.
@@ -12,7 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 0.06
+local version = 1.0
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -53,6 +53,9 @@ local Qrange, Qwidth, Qspeed, Qdelay = 1250, 90, 2200, 0.25
 local Wrange, Wwidth, Wspeed, Wdelay = 800, 100, 1450, 0.5	
 local Erange, Ewidth, Espeed, Edelay = 950, 80, 2000, 0.65	
 local Rrange, Rwidth, Rspeed, Rdelay = 3000, 1, 1500, 0.5
+
+local HeadshotCaitlyn = false
+local LastPing = 0
 		  
 --[[ Callback 1 ]]--
 function OnLoad()
@@ -90,6 +93,10 @@ function OnDraw()
 	     DrawCircleMinimap(myHero.x, myHero.y, myHero.z, 3000, 1, TARGB({255, 255, 0, 255}), 100)
 	  end
    end
+   
+   if HeadshotCaitlyn then
+	  DrawText3D("HEADSHOT!",myHero.x,myHero.y,myHero.z, 15,RGB(165,42,42)) 
+   end
 end
 
 function OnTick()
@@ -101,6 +108,14 @@ function OnTick()
    if CaitMenu.Combo.combokey then
       _Combo() 
    end   
+   -- if ON will ping on killable target then ult him
+   if CaitMenu.Ult.ping then
+      _PingUlt()
+   end
+   -- Ult when key is pressed
+   if CaitMenu.Ult.ultkey then
+      _Ult()
+   end
    -- if key C pressed then harass
    if CaitMenu.Harass.harasskey then
       _Harass() 
@@ -109,10 +124,9 @@ function OnTick()
    if CaitMenu.Jump.jumpkey then
       _Jump() 
    end
-   
    -- "Animation cancel found try it"
    local target = STS:GetTarget(Qrange)
-   if target ~= nil and myHero:CanUseSpell(_E) == READY and myHero:CanUseSpell(_Q) == READY then
+   if ValidTarget(target) and myHero:CanUseSpell(_E) == READY and myHero:CanUseSpell(_Q) == READY then
       if CaitMenu.QE.qekey then
 	    if myHero:CanUseSpell(_E) == READY then
 		   -- Ty Bilbao, math to reverse spell
@@ -135,10 +149,23 @@ end
 -- When ennemy in range will get controlled (stun, slow, charm,...) then it will W if ON in Combo or harass or autoW ON
 function OnGainBuff(unit, buff)
    if ((CaitMenu.Combo.comboW and CaitMenu.Combo.CCedW) or (CaitMenu.Harass.harassW and CaitMenu.Harass.CCedHW) or CaitMenu.autoW) and myHero:CanUseSpell(_W) == READY and unit.visible and unit ~= nil and not unit.dead and ValidTarget(unit, Wrange) then
-      if buff.type == 5 or buff.type == 8 or buff.type == 10 or buff.type == 11 or buff.type == 21 or buff.type == 22 or buff.type == 29 then
+      if buff.type == 5 or buff.type == 21 or buff.type == 22 or buff.type == 29 then
 	     CastSpells(_W, unit.x, unit.z)
 	  end
    end
+   
+   -- Tell if headshot or not
+   if buff.name == "caitlynheadshot" then
+      HeadshotCaitlyn = true
+   else
+      HeadshotCaitlyn = false
+   end
+   
+   -- Get all buff name tips
+   --[[if lastbuff ~= buff.name then
+   PrintChat(buff.name)
+   lastbuff = buff.name
+   end]]--
 end
 
 --[[ Personal Function ]]--
@@ -179,8 +206,9 @@ function _LoadMenu()
 	CaitMenu.Combo:addParam("gapcloseE", "Use E anti gapcloser", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("gapcloseDist", "lower if u want it to antigaplose when the ennemy is farther", SCRIPT_PARAM_SLICE, 700, 50, 950)
 	
-	--CaitMenu:addSubMenu("Ult snipe", "Ult")
-	--CaitMenu.Ult:addParam("ping", "Ping alert", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu:addSubMenu("Ult snipe", "Ult")
+	CaitMenu.Ult:addParam("ping", "Ping alert", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Ult:addParam("ultkey", "Ult killable target", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("R"))
 	
 	CaitMenu:addSubMenu("Jump", "Jump")
 	CaitMenu.Jump:addParam("jumpkey", "Jump to mouse key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("T"))
@@ -213,12 +241,11 @@ function CastSpells(spell, posx, posz)
   end	  
 end
 
-
 -- Thats the combo function, declaring in range target, checking if key pressed, if spell ready, getting prediction using VPred, casting spell
 function _Combo()
     -- Cast Q
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCQ then
+    if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCQ then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
@@ -226,7 +253,7 @@ function _Combo()
     end	
 	-- Cast W
 	local target = STS:GetTarget(Wrange)
-	if CaitMenu.Combo.comboW and not CaitMenu.Combo.CCedW and myHero:CanUseSpell(_W) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCW then
+	if CaitMenu.Combo.comboW and not CaitMenu.Combo.CCedW and myHero:CanUseSpell(_W) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCW then
 	   local CastPosition = VP:GetCircularCastPosition(target, Wdelay, Wwidth, Wrange, Wspeed, myHero, true)
 	   if GetDistance(target) < Wrange and myHero:CanUseSpell(_W) == READY then
 	      CastSpells(_W, CastPosition.x, CastPosition.z)
@@ -234,19 +261,41 @@ function _Combo()
     end	
 	-- Cast E gapcloser
 	local target = STS:GetTarget(Erange)
-	if CaitMenu.Combo.gapcloseE and myHero:CanUseSpell(_E) == READY and target ~= nil then
+	if CaitMenu.Combo.gapcloseE and myHero:CanUseSpell(_E) == READY and ValidTarget(target) then
 	   local CastPosition = VP:GetLineCastPosition(target, Edelay, Ewidth, Erange, Espeed, myHero, true)
 	   if GetDistance(target) <= Erange - CaitMenu.Combo.gapcloseDist and myHero:CanUseSpell(_E) == READY then
 	      CastSpells(_E, CastPosition.x, CastPosition.z)
        end
     end	
 end
-
+-- Ping if enemy is killable -- THANKS AGAIN HONDA7
+function _PingUlt()
+    if myHero:CanUseSpell(_R) == READY and (os.clock() - LastPing > 30) then
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        if ValidTarget(enemy, Rrange) and (enemy.health < getDmg("R", enemy, myHero)) then
+			for i = 1, 3 do
+				DelayAction(PingClient,  1000 * 0.3 * i/1000, {enemy.x, enemy.z})
+			end
+			LastPing = os.clock()
+		end
+	end
+	end
+end
+-- Ult if killable
+function _Ult()
+   if myHero:CanUseSpell(_R) == READY then
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        if ValidTarget(enemy, Rrange) and (enemy.health < getDmg("R", enemy, myHero)) then
+           CastSpell(_R, enemy)
+		end
+	end
+	end
+end
 -- That's the harass function hell yeahh
 function _Harass()
     -- cast Q harass
     local target = STS:GetTarget(Qrange)
-    if CaitMenu.Harass.harassQ and myHero:CanUseSpell(_Q) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
+    if CaitMenu.Harass.harassQ and myHero:CanUseSpell(_Q) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
 	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
 	      CastSpells(_Q, CastPosition.x, CastPosition.z)
@@ -254,7 +303,7 @@ function _Harass()
    end	
    -- cast W harass
    local target = STS:GetTarget(Wrange)
-   if CaitMenu.Harass.harassW and not CaitMenu.Harass.CCedHW and myHero:CanUseSpell(_W) == READY and target ~= nil and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckHW then
+   if CaitMenu.Harass.harassW and not CaitMenu.Harass.CCedHW and myHero:CanUseSpell(_W) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckHW then
 	   local CastPosition = VP:GetCircularCastPosition(target, Wdelay, Wwidth, Wrange, Wspeed, myHero, true)
 	   if GetDistance(target) < Wrange and myHero:CanUseSpell(_W) == READY then
 	      CastSpells(_W, CastPosition.x, CastPosition.z)
