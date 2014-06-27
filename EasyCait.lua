@@ -12,7 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 1.0
+local version = 1.1
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -199,6 +199,7 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Combo", "Combo")
 	CaitMenu.Combo:addParam("combokey", "Combo key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
 	CaitMenu.Combo:addParam("comboQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Combo:addParam("oorCQ", "Use Q when out of range", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("ManacheckCQ", "Mana manager Q", SCRIPT_PARAM_SLICE, 10, 1, 100)
 	CaitMenu.Combo:addParam("comboW", "Use W", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Combo:addParam("CCedW", "Use W only on controlled", SCRIPT_PARAM_ONOFF, true)
@@ -216,6 +217,7 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Harass", "Harass")
 	CaitMenu.Harass:addParam("harasskey", "Harass key", SCRIPT_PARAM_ONKEYDOWN, false, string.byte("C"))
 	CaitMenu.Harass:addParam("harassQ", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Harass:addParam("oorHQ", "Use Q when out of range", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Harass:addParam("Manacheck", "Mana manager", SCRIPT_PARAM_SLICE, 50, 1, 100)
 	CaitMenu.Harass:addParam("harassW", "Use W", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Harass:addParam("CCedHW", "Use W only on controlled", SCRIPT_PARAM_ONOFF, true)
@@ -247,9 +249,15 @@ function _Combo()
     local target = STS:GetTarget(Qrange)
     if CaitMenu.Combo.comboQ and myHero:CanUseSpell(_Q) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Combo.ManacheckCQ then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
-	      CastSpells(_Q, CastPosition.x, CastPosition.z)
-       end
+	   if CaitMenu.Combo.oorCQ then
+	      if GetDistance(target) >= SOWi:MyRange() and myHero:CanUseSpell(_Q) == READY then
+	         CastSpells(_Q, CastPosition.x, CastPosition.z)
+          end
+	   else
+	   	  if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
+	         CastSpells(_Q, CastPosition.x, CastPosition.z)
+          end
+	   end
     end	
 	-- Cast W
 	local target = STS:GetTarget(Wrange)
@@ -297,9 +305,15 @@ function _Harass()
     local target = STS:GetTarget(Qrange)
     if CaitMenu.Harass.harassQ and myHero:CanUseSpell(_Q) == READY and ValidTarget(target) and (myHero.mana / myHero.maxMana * 100) >= CaitMenu.Harass.Manacheck then
 	   local CastPosition = VP:GetLineCastPosition(target, Qdelay, Qwidth, Qrange, Qspeed, myHero, true)
-	   if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
-	      CastSpells(_Q, CastPosition.x, CastPosition.z)
-       end
+	   if CaitMenu.Harass.oorHQ then
+	      if GetDistance(target) >= SOWi:MyRange() and myHero:CanUseSpell(_Q) == READY then
+	         CastSpells(_Q, CastPosition.x, CastPosition.z)
+          end
+	   else
+	   	  if GetDistance(target) <= Qrange - 150 and myHero:CanUseSpell(_Q) == READY then
+	         CastSpells(_Q, CastPosition.x, CastPosition.z)
+          end
+	   end
    end	
    -- cast W harass
    local target = STS:GetTarget(Wrange)
