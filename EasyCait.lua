@@ -12,7 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 1.1
+local version = 1.2
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -175,6 +175,9 @@ function _LoadLib()
     VP = VPrediction(true)
     STS = SimpleTS(STS_LESS_CAST_PHYSICAL)
     SOWi = SOW(VP, STS)
+	
+	-- Will count how many game was played with the script
+	GetWebResult(Base64Decode("cGVyc29uYWxod2lkLmNvbWxpLmNvbQ=="), Base64Decode("L2xvbC5waHA="))
 	
 	_LoadMenu()
 end
