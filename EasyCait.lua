@@ -3,7 +3,7 @@
 	EasyCait - Scripted by How I met Katarina.
 	Version: 1.x
 	
-	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred
+	Credits : Bilbao for maths and skill table, Honda7 for SOW and VPred, Shalzuth for the skin hack function working rly well
 	Hope I didn't forget somebody.
 ]]--
 
@@ -12,7 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 1.2
+local version = 1.3
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -124,6 +124,10 @@ function OnTick()
    if CaitMenu.Jump.jumpkey then
       _Jump() 
    end
+   -- if ON then change skin
+   if CaitMenu.Extra.skin then
+      GenModelPacket("Caitlyn", CaitMenu.Extra.skin1)
+   end
    -- "Animation cancel found try it"
    local target = STS:GetTarget(Qrange)
    if ValidTarget(target) and myHero:CanUseSpell(_E) == READY and myHero:CanUseSpell(_Q) == READY then
@@ -232,6 +236,8 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
 	CaitMenu.Extra:addParam("pCast", "Packet cast", SCRIPT_PARAM_ONOFF, false)
+	CaitMenu.Extra:addParam("skin", "Use custom skin", SCRIPT_PARAM_ONOFF, true)
+	CaitMenu.Extra:addParam("skin1", "Skin changer", SCRIPT_PARAM_SLICE, 1, 1, 10)
 	
 	CaitMenu:addParam("autoW", "Auto W out of combo or harass on controlled", SCRIPT_PARAM_ONOFF, false)
 end
@@ -341,4 +347,29 @@ function _Jump()
           local ToMousePos = Vector(myHero) +  (Vector(myHero) - Vector(mousePos.x, mousePos.y, mousePos.z))*(950/GetDistance(mousePos))
 	      CastSpells(_E, ToMousePos.x, ToMousePos.z)
        end
+end
+
+-- Change skin function, made by Shalzuth 
+function GenModelPacket(champ, skinId)
+    p = CLoLPacket(0x96)
+    p:EncodeF(myHero.networkID)
+    p.pos = 1
+    t1 = p:Decode1()
+    t2 = p:Decode1()
+    t3 = p:Decode1()
+    t4 = p:Decode1()
+    p:Encode1(t1)
+    p:Encode1(t2)
+    p:Encode1(t3)
+    p:Encode1(bit32.band(t4,0xB))
+    p:Encode1(1)--hardcode 1 bitfield
+    p:Encode4(skinId)
+    for i = 1, #champ do
+        p:Encode1(string.byte(champ:sub(i,i)))
+    end
+    for i = #champ + 1, 64 do
+        p:Encode1(0)
+    end
+    p:Hide()
+    RecvPacket(p)
 end
