@@ -12,7 +12,7 @@ if GetMyHero().charName ~= "Caitlyn" then
 return 
 end
 
-local version = 1.3
+local version = 1.4
 local AUTOUPDATE = true
 local SCRIPT_NAME = "EasyCait"
 
@@ -56,7 +56,8 @@ local Rrange, Rwidth, Rspeed, Rdelay = 3000, 1, 1500, 0.5
 
 local HeadshotCaitlyn = false
 local LastPing = 0
-		  
+local LastSkin	
+		
 --[[ Callback 1 ]]--
 function OnLoad()
    PrintChat("<font color=\"#eFF99CC\">You are using EasyCait ["..version.."] by How I met Katarina.</font>")
@@ -110,7 +111,11 @@ function OnTick()
    end   
    -- if ON will ping on killable target then ult him
    if CaitMenu.Ult.ping then
-      _PingUlt()
+      if VIP_USER then
+         _PingUlt()
+	  else
+	     CaitMenu.Ult.ping = false
+	  end
    end
    -- Ult when key is pressed
    if CaitMenu.Ult.ultkey then
@@ -125,8 +130,11 @@ function OnTick()
       _Jump() 
    end
    -- if ON then change skin
-   if CaitMenu.Extra.skin then
-      GenModelPacket("Caitlyn", CaitMenu.Extra.skin1)
+   if CaitMenu.Extra.skin1 ~= LastSkin then
+      LastSkin = CaitMenu.Extra.skin1
+      if VIP_USER then
+         GenModelPacket("Caitlyn", LastSkin)
+	  end
    end
    -- "Animation cancel found try it"
    local target = STS:GetTarget(Qrange)
@@ -185,6 +193,7 @@ function _LoadLib()
 	
 	_LoadMenu()
 end
+
 -- Load my menu adding SOW Orbwalking..
 function _LoadMenu()
     CaitMenu = scriptConfig("EasyCait "..version, "EasyCait "..version)
@@ -236,7 +245,6 @@ function _LoadMenu()
 	CaitMenu:addSubMenu("Extra", "Extra")
 	CaitMenu.Extra:addParam("AutoLev", "Auto level skill", SCRIPT_PARAM_ONOFF, false)
 	CaitMenu.Extra:addParam("pCast", "Packet cast", SCRIPT_PARAM_ONOFF, false)
-	CaitMenu.Extra:addParam("skin", "Use custom skin", SCRIPT_PARAM_ONOFF, true)
 	CaitMenu.Extra:addParam("skin1", "Skin changer", SCRIPT_PARAM_SLICE, 1, 1, 10)
 	
 	CaitMenu:addParam("autoW", "Auto W out of combo or harass on controlled", SCRIPT_PARAM_ONOFF, false)
